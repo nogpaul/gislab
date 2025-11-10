@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>GISLab — Demo Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <!-- Leaflet core CSS -->
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <!-- MarkerCluster plugin CSS -->
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+
+    /* Simple floating toolbar */
+    #toolbar {
+      position: absolute;
+      z-index: 1000;
+      left: 12px;
+      top: 12px;
+    }
+    .panel {
+      background: #fff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+      font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      min-width: 260px;
+    }
+    .panel label { display: inline-flex; align-items: center; gap: 6px; }
+    .panel input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      border: 1px solid #d0d5dd;
+      border-radius: 6px;
+      outline: none;
+    }
+    .panel input[type="text"]:focus { border-color: #7aa2ff; box-shadow: 0 0 0 3px rgba(122,162,255,0.2); }
+    .cats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 6px; }
+    .small { color: #667085; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+  <!-- Toolbar: search + dynamic category filters -->
+  <div id="toolbar">
+    <div class="panel" role="region" aria-label="Map controls">
+      <label for="q"><strong>Search</strong></label>
+      <input id="q" type="text" placeholder="Find a place…" aria-label="Search by name"/>
+
+      <div style="margin-top:10px;">
+        <div><strong>Categories</strong></div>
+        <!-- Dynamic checkboxes will be injected here -->
+        <div id="cats" class="cats" role="group" aria-label="Category filters"></div>
+      </div>
+
+      <div style="margin-top:8px;" class="small">
+        Tip: type a few letters (e.g., <em>sta</em>) or toggle categories.
+      </div>
+    </div>
+  </div>
+
+  <!-- Map container -->
+  <div id="map" role="application" aria-label="Interactive map"></div>
+
+  <!-- Leaflet core JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- MarkerCluster plugin JS -->
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+  <script>
+    // 1) Initialize the map
+    const map = L.map('map');
+
+    // 2) OSM basemap (remember attribution)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 20,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // 3) UI elements
+    const qInput = document.getElementById('q');
+    const catsContainer = document.getElementById('cats');
+
+    // 4) Cluster group (from Leaflet.markercluster)
+    const cluster = L.markerClusterGroup();
+    map.addLayer(cluster);
+
+    // 5) Data & layer state
+    let rawGeojson = null;
+    let currentLayer = null;
+
+    function buildCategoryUI(categories) {
+      catsContainer.innerHTML = "";
+      categories.forEach(cat => {
+        const id = "cat_" + cat.replace(/\W+/g, "_");
+        const label = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'cat';
+        cb.value = cat;
+        cb.checked = true;
+        cb.id = id;
+        label.appendChild(cb);
+        label.append(" " + cat);
+        catsContainer.appendChild(label);
+      });
+
+      // Bind change events after building
+      document.querySelectorAll('input.cat').forEach(c =>
+        c.addEventListener('change', refresh)
+      );
+    }
+
+    function activeCategories() {
+      return new Set([...document.querySelectorAll('input.cat')]
+        .filter(c => c.checked)
+        .map(c => c.value));
+    }
+
+    function searchQuery() {
+      return (qInput.value || '').trim().toLowerCase();
+    }
+
+    function makeLayer(data) {
+      const cats = activeCategories();
+      const query = searchQuery();
+
+      // Build a filtered GeoJSON layer each time UI changes
+      const layer = L.geoJSON(data, {
+        // Circle markers are lightweight & render well; cluster can handle them
+        pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 6, weight: 2 }),
+        filter: (feature) => {
+          const p = feature.properties || {};
+          const cat = (p.category ? String(p.category).trim() : "Other");
+          const catOK = cats.size ? cats.has(cat) : true;
+          const searchOK = !query || (p.name || '').toLowerCase().includes(query);
+          return catOK && searchOK;
+        },
+        onEachFeature: (feature, lyr) => {
+          const p = feature.properties || {};
+          const name = p.name ?? 'Unknown';
+          const cat = (p.category ? String(p.category).trim() : 'Other');
+          lyr.bindPopup(`<b>${name}</b><br/><small>${cat}</small>`);
+        }
+      });
+
+      return layer;
+    }
+
+    function refresh() {
+      if (!rawGeojson) return;
+
+      // Remove old layer from cluster and add a new filtered layer
+      if (currentLayer) cluster.removeLayer(currentLayer);
+      currentLayer = makeLayer(rawGeojson);
+      cluster.addLayer(currentLayer);
+
+      // Fit to visible points if any
+      try {
+        const b = cluster.getBounds();
+        if (b && b.isValid()) {
+          map.fitBounds(b, { padding: [24, 24] });
+        } else {
+          map.setView([51.495, 7.88], 13); // fallback
+        }
+      } catch (e) {
+        map.setView([51.495, 7.88], 13);
+      }
+    }
+
+    // 6) Wire search event
+    qInput.addEventListener('input', refresh);
+
+    // 7) Load GeoJSON once, build dynamic category filters, then filter in-memory
+    // Cache-busting query param ensures dev reloads pull fresh data
+    fetch('/data/places.geojson?v=' + Date.now())
+      .then(resp => {
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        return resp.json();
+      })
+      .then(json => {
+        rawGeojson = json;
+
+        // Gather unique categories from data (default to "Other" if missing)
+        const features = Array.isArray(json.features) ? json.features : [];
+        const uniqueCats = [...new Set(features.map(
+          f => (f.properties && f.properties.category)
+                ? String(f.properties.category).trim()
+                : "Other"
+        ))].sort();
+
+        buildCategoryUI(uniqueCats);
+        refresh();
+      })
+      .catch(err => {
+        console.error('Failed to load GeoJSON:', err);
+        // Visible hint on the map if data fails to load
+        L.popup({ closeOnClick: false, autoClose: false })
+          .setLatLng([49.431773, 7.754159])
+          .setContent('Could not load <code>data/places.geojson</code>. Check server logs and file path.')
+          .openOn(map);
+        map.setView([49.431773, 7.754159], 13);
+      });
+  </script>
+</body>
+</html>
