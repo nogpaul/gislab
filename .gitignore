@@ -116,3 +116,9 @@ Desktop.ini
 .env
 
 !data/samples/**
+
+!data/.gitkeep
+
+!data/samples/
+
+!data/samples/**
