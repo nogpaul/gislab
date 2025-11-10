@@ -122,3 +122,11 @@ Desktop.ini
 !data/samples/
 
 !data/samples/**
+
+# Local executables (ignored)
+/bin/**
+!/bin/.gitkeep
+
+# Installer downloads (ignored)
+/setup/downloads/**
+!/setup/downloads/.gitkeep
