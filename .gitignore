@@ -111,3 +111,6 @@ Thumbs.db
 Desktop.ini
 *.tmp
 ~$*
+
+# Secrets
+.env
