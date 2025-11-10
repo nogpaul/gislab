@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>GISLab — Demo Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="" crossorigin=""/>
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+    .legend { background: white; padding: 6px 8px; border-radius: 4px; box-shadow: 0 0 8px rgba(0,0,0,0.2); }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="" crossorigin=""></script>
+<script>
+  // 1) Init map centered on your AOI; we'll fit to data after loading
+  const map = L.map('map');
+
+  // 2) Basemap (OSM). Attribution is required.
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 20,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  // 3) Load your exported GeoJSON
+  fetch('data/places.geojson')
+    .then(resp => resp.json())
+    .then(geojson => {
+      const layer = L.geoJSON(geojson, {
+        pointToLayer: (feature, latlng) =>
+          L.circleMarker(latlng, { radius: 6, weight: 2 }),
+        onEachFeature: (feature, layer) => {
+          const name = feature.properties?.name ?? 'Unknown';
+          layer.bindPopup(`<b>${name}</b>`);
+        }
+      }).addTo(map);
+
+      // 4) Fit map to features or use a default view if empty
+      try {
+        map.fitBounds(layer.getBounds(), { padding: [24,24] });
+      } catch (e) {
+        map.setView([51.495, 7.88], 13); // fallback center/zoom
+      }
+    })
+    .catch(err => console.error('Failed to load GeoJSON:', err));
+</script>
+</body>
+</html>
