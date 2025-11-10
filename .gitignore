@@ -114,3 +114,5 @@ Desktop.ini
 
 # Secrets
 .env
+
+!data/samples/**
