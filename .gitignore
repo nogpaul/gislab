@@ -1,0 +1,113 @@
+﻿# ------------------------------
+# Core Python
+# ------------------------------
+envs/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.build/
+dist/
+build/
+.cache/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage*
+coverage.xml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ------------------------------
+# VS Code / Editors
+# ------------------------------
+.vscode/
+.history/
+*.code-workspace
+
+# ------------------------------
+# Web projects (optional)
+# ------------------------------
+web/node_modules/
+web/.next/
+web/.cache/
+web/build/
+web/dist/
+# Keep lockfiles committed for reproducible builds:
+# !web/package-lock.json
+# !web/pnpm-lock.yaml
+# !web/yarn.lock
+
+# ------------------------------
+# Data & Outputs (keep repo lean)
+# ------------------------------
+# General rule: don't commit raw data or heavy outputs.
+data/**
+!data/.gitkeep
+!data/README.md
+data/sample/**
+# Allow tiny sample datasets:
+!data/sample/**
+
+# Common GIS binaries under data/ and outputs/
+# (Scope to data/ and typical output folders to avoid blocking small test assets elsewhere)
+data/**/*.tif
+data/**/*.tiff
+data/**/*.jp2
+data/**/*.img
+data/**/*.ecw
+data/**/*.las
+data/**/*.laz
+data/**/*.kml
+data/**/*.kmz
+data/**/*.gpkg
+data/**/*.gdb/**
+
+# Optional output folders (if you create them)
+outputs/**
+export/**
+results/**
+
+# GDAL auxiliary/sidecar files (often auto-generated)
+**/*.aux.xml
+**/*.ovr
+**/*.tfw
+**/*.jgw
+**/*.prj
+**/*.sbn
+**/*.sbx
+**/*.shp.xml
+**/*.cpg
+
+# Shapefile components (if they appear outside data/, add path scoping as needed)
+# *.shp
+# *.shx
+# *.dbf
+
+# ------------------------------
+# Databases / Dumps / Secrets
+# ------------------------------
+db/dumps/**
+*.sqlite
+*.db
+*.mdb
+*.accdb
+*.sql~
+*.bak
+.env
+.env.*
+*.key
+*.crt
+*.pem
+*.pfx
+
+# ------------------------------
+# OS / Misc
+# ------------------------------
+Thumbs.db
+Desktop.ini
+*.tmp
+~$*
