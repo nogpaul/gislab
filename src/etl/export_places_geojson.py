@@ -1,9 +1,11 @@
-import os, json
+import json
+import os
 from pathlib import Path
 
 # Load .env if available
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except Exception:
     pass
@@ -37,13 +39,14 @@ SELECT jsonb_build_object(
 FROM public.places;
 """
 
+
 def main():
     dsn = (
-        f"host={os.getenv('PGHOST','localhost')} "
-        f"port={os.getenv('PGPORT','5432')} "
-        f"dbname={os.getenv('PGDATABASE','gislab')} "
-        f"user={os.getenv('PGUSER','gislab')} "
-        f"password={os.getenv('PGPASSWORD','')}"
+        f"host={os.getenv('PGHOST', 'localhost')} "
+        f"port={os.getenv('PGPORT', '5432')} "
+        f"dbname={os.getenv('PGDATABASE', 'gislab')} "
+        f"user={os.getenv('PGUSER', 'gislab')} "
+        f"password={os.getenv('PGPASSWORD', '')}"
     )
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         cur.execute(SQL)
@@ -51,6 +54,7 @@ def main():
         OUTPATH.parent.mkdir(parents=True, exist_ok=True)
         OUTPATH.write_text(json.dumps(fc, ensure_ascii=False), encoding="utf-8")
         print(f"Wrote {OUTPATH}")
+
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,7 @@
 import os
-from dotenv import load_dotenv
+
 import psycopg
+from dotenv import load_dotenv
 
 load_dotenv()  # loads .env into process env
 
@@ -11,6 +12,6 @@ dsn = f"host={os.getenv('PGHOST')} port={os.getenv('PGPORT')} dbname={os.getenv(
 with psycopg.connect(dsn) as conn:
     with conn.cursor() as cur:
         cur.execute("SELECT version();")
-        print('PostgreSQL:', cur.fetchone()[0])
+        print("PostgreSQL:", cur.fetchone()[0])
         cur.execute("SELECT PostGIS_Full_Version();")
-        print('PostGIS:', cur.fetchone()[0])
+        print("PostGIS:", cur.fetchone()[0])

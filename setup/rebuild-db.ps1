@@ -3,7 +3,7 @@ param(
 )
 # Admin creds (prompt if not set)
 if (-not \) {
-  \ = Read-Host -AsSecureString 'Enter postgres superuser password' | 
+  \ = Read-Host -AsSecureString 'Enter postgres superuser password' |
     ForEach-Object { (New-Object System.Net.NetworkCredential('', )).Password }
 }
 \    = 'postgres'
