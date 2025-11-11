@@ -1,4 +1,4 @@
-name,lon,lat
-Staytoo Apartments,7.754159,49.431773
-Aral Station,7.757560,49.433670
-E center Kaiserslautern,7.765187,49.434935
+name,lon,lat,category
+Staytoo Apartments,7.754159,49.431773,Residential Apartment
+Aral Station,7.757560,49.433670,Gas Station
+E center Kaiserslautern,7.765187,49.434935,Grocery Shop

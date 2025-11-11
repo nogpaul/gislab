@@ -3,6 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import psycopg
 from psycopg import sql
+import re
 
 load_dotenv()
 
@@ -12,15 +13,8 @@ def valid_row(row):
     """Basic validation: non-empty name, finite lon/lat in range."""
     try:
         name = row["name"].strip()
-        lon = float(row["lon"])
-        lat = float(row["lat"])
-        if not name:
-            return False
-        if not (math.isfinite(lon) and math.isfinite(lat)):
-            return False
-        if not (-180 <= lon <= 180 and -90 <= lat <= 90):
-            return False
-        return True
+        lon = float(row["lon"]); lat = float(row["lat"])
+        return bool(name) and -180 <= lon <= 180 and -90 <= lat <= 90
     except Exception:
         return False
 
@@ -33,29 +27,17 @@ def main():
 
     with psycopg.connect(dsn, autocommit=False) as conn:
         with conn.cursor() as cur:
-            # 1) Ensure table exists (same as Day 2 but safe to re-run)
+            # Ensure table exists (add category column if missing)
             cur.execute("""
             CREATE TABLE IF NOT EXISTS public.places (
-              place_id   serial PRIMARY KEY,
-              name       text NOT NULL,
-              geom       geometry(Point, 4326) NOT NULL
+              place_id serial PRIMARY KEY,
+              name     text NOT NULL UNIQUE,
+              geom     geometry(Point,4326) NOT NULL,
+              category text
             );
             """)
-            # Unique key for idempotent upserts (names normalized)
-            cur.execute("""
-            DO $$
-            BEGIN
-              IF NOT EXISTS (
-                SELECT 1 FROM pg_constraint
-                WHERE conname = 'ux_places_name_lower'
-              ) THEN
-                ALTER TABLE public.places
-                ADD CONSTRAINT ux_places_name_lower UNIQUE (name);
-              END IF;
-            END$$;
-            """)
 
-            # 2) Create spatial index if missing
+            # Spatial index
             cur.execute("""
             DO $$
             BEGIN
@@ -69,26 +51,42 @@ def main():
             """)
 
             # 3) Read and clean CSV
+
+            def normalize_category(val: str | None) -> str | None:
+                if not val:
+                    return None
+                # collapse internal whitespace + trim
+                v = re.sub(r"\s+", " ", val).strip()
+                if not v:
+                    return None
+                # normalize common spellings to a canonical form
+                synonyms = {
+                    "residential apparment": "Residential Appartment",
+                    "gas station": "Gas Station",
+                    "grocery shop": "Grocery Shop",
+                }
+                key = v.lower()
+                return synonyms.get(key, v)  # keep original casing if not mapped
+            
             rows = []
             with open(CSV_PATH, newline='', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for r in reader:
                     if valid_row(r):
-                        rows.append((r["name"].strip(), float(r["lon"]), float(r["lat"])))
+                        name = r["name"].strip()
+                        lon = float(r["lon"]); lat = float(r["lat"])
+                        category = normalize_category(r.get("category"))
+                        rows.append((name, lon, lat, category))
 
-            # 4) Upsert rows
-            # Build geometry on the server: ST_SetSRID(ST_MakePoint(lon,lat),4326)
             upsert_sql = """
-            INSERT INTO public.places (name, geom)
-            VALUES (%s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
-            ON CONFLICT (name)
-            DO UPDATE SET geom = EXCLUDED.geom;
+            INSERT INTO public.places (name, geom, category)
+            VALUES (%s, ST_SetSRID(ST_MakePoint(%s,%s),4326), %s)
+            ON CONFLICT (name) DO UPDATE
+            SET geom = EXCLUDED.geom,
+              category = COALESCE(EXCLUDED.category, public.places.category);
             """
             cur.executemany(upsert_sql, rows)
-
-            # 5) Commit
             conn.commit()
-
             print(f"Upserted {len(rows)} rows into public.places")
 
 if __name__ == "__main__":
